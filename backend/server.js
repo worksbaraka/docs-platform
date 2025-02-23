@@ -1,10 +1,29 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+const setupAuth = require('./auth'); // Import Oauth module
+
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Configure sessions
+app.use(session({ 
+  secret: 'your_secret_key', 
+  resave: false, 
+  saveUninitialized: false 
+}));
+
+// Initialize Passport and restore authentication state, if any, from the session.
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Set up authentication routes from our auth module
+setupAuth(app);
 
 // In-memory storage for the document (for demonstration purposes)
 let currentDocument = '';
@@ -13,6 +32,8 @@ let currentDocument = '';
 app.get('/', (req, res) => {
   res.send('Backend is running!');
 });
+
+app.get('/test', (req, res) => res.send('Test route works!'));
 
 // Endpoint to retrieve the current document
 app.get('/document', (req, res) => {
