@@ -8,23 +8,40 @@ const socket = io('http://localhost:5000');
 function App() {
   const [markdown, setMarkdown] = useState('');
 
+  // Fetch the saved document when the component mounts
   useEffect(() => {
-    // Listen for document updates from the server
+    fetch('http://localhost:5000/document')
+      .then((response) => response.json())
+      .then((data) => {
+        setMarkdown(data.document);
+      })
+      .catch((error) => console.error('Error fetching document:', error));
+  }, []);
+
+  // Setup Socket.IO to listen for document updates from the server
+  useEffect(() => {
     socket.on('doc-update', (data) => {
       setMarkdown(data);
     });
 
-    // Clean up on unmount
+    // Cleanup on unmount
     return () => {
       socket.off('doc-update');
     };
   }, []);
 
+  // Handle changes in the editor
   const handleChange = (e) => {
     const newText = e.target.value;
     setMarkdown(newText);
-    // Emit changes to the server so other clients can receive updates
+    // Emit the update to the server for real-time collaboration
     socket.emit('doc-update', newText);
+    // Update the persistent storage via a POST request
+    fetch('http://localhost:5000/document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: newText })
+    }).catch((error) => console.error('Error updating document:', error));
   };
 
   return (
