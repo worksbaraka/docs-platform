@@ -1,4 +1,5 @@
 require('dotenv').config();
+const mongoose = require('mongoose');
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -8,14 +9,23 @@ const setupAuth = require('./auth'); // Import Oauth module
 const app = express();
 
 // Middleware
-app.use(cors());
+// Configure CORS to allow requests from your frontend
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // Configure sessions
 app.use(session({ 
   secret: 'your_secret_key', 
   resave: false, 
-  saveUninitialized: false 
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    sameSite: 'lax' //Works well for local dev
+  }
 }));
 
 // Initialize Passport and restore authentication state, if any, from the session.
@@ -27,6 +37,13 @@ setupAuth(app);
 
 // In-memory storage for the document (for demonstration purposes)
 let currentDocument = '';
+
+mongoose.connect('mongodb://localhost:27017/docsplatform', { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
+})
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Test route
 app.get('/', (req, res) => {
@@ -50,7 +67,13 @@ app.get('/document', (req, res) => {
 // Create an HTTP server, attach Socket.IO
 const PORT = process.env.PORT || 5000;
 const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const io = require('socket.io')(http, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 // Socket.IO configuration for real-time communication
 io.on('connection', (socket) => {

@@ -1,51 +1,65 @@
-console.log("Auth module loaded");
-
+// backend/auth.js
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
 
 function setupAuth(app) {
-  // Configure Passport session management
+  console.log("Auth module loaded");
+
+  // Configure Passport for session handling
   passport.serializeUser((user, done) => {
     done(null, user);
   });
-
   passport.deserializeUser((obj, done) => {
     done(null, obj);
   });
 
-  // Configure GitHub Strategy
+  // Configure the GitHub strategy
   passport.use(new GitHubStrategy({
-      clientID: process.env.GITHUB_CLIENT_ID,        // Set these in your environment variables
+      clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: "http://localhost:5000/auth/github/callback"
     },
     (accessToken, refreshToken, profile, done) => {
-      // You can perform database operations here if needed
-      return done(null, profile);
+      console.log("GitHub profile:", profile);
+      // Create a user object with only the fields you need
+      const userData = {
+        login: profile._json.login,           // GitHub username
+        avatar_url: profile._json.avatar_url    // GitHub avatar URL
+      };
+      return done(null, userData);
     }
   ));
 
-  // Define GitHub auth routes
+  // Define the route to initiate GitHub authentication
   app.get('/auth/github', (req, res, next) => {
-    console.log("Auth route /auth/github accessed");
+    console.log("GET /auth/github route hit");
     next();
   }, passport.authenticate('github', { scope: ['user:email'] }));
 
-  app.get('/auth/github/callback', 
+  // Define the GitHub OAuth callback route
+  app.get('/auth/github/callback',
     passport.authenticate('github', { failureRedirect: '/' }),
     (req, res) => {
-      // Successful authentication, redirect to frontend
+      // Save the authenticated user in the session
+      req.session.user = req.user;
+      // Redirect to the frontend after successful login
       res.redirect('http://localhost:3000');
     }
   );
 
-  // A route to check authentication status
+  // Define a route to check authentication status
   app.get('/auth/status', (req, res) => {
-    if (req.isAuthenticated()) {
-      res.json({ authenticated: true, user: req.user });
-    } else {
-      res.json({ authenticated: false });
-    }
+    res.json({ user: req.session.user || null });
+  });
+
+  // Define the logout route (only one definition)
+  app.get('/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Error destroying session:', err);
+      }
+      res.redirect('http://localhost:3000');
+    });
   });
 }
 
