@@ -6,6 +6,7 @@ const session = require('express-session');
 const passport = require('passport');
 const setupAuth = require('./auth'); // Import Oauth module
 const Document = require('./models/Document');
+const documentRoutes = require('./routes/documentRoutes');
 
 const app = express();
 
@@ -36,6 +37,8 @@ app.use(passport.session());
 // Set up authentication routes from our auth module
 setupAuth(app);
 
+//route
+app.use('/documents', documentRoutes);
 
 // GET /document/revisions - Retrieve revision history
 app.get('/document/revisions', async (req, res) => {
