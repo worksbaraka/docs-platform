@@ -37,31 +37,35 @@ app.use(passport.session());
 setupAuth(app);
 
 
-// GET /document - Retrieve the current document content
-app.get('/document', async (req, res) => {
+// GET /document/revisions - Retrieve revision history
+app.get('/document/revisions', async (req, res) => {
   try {
     let doc = await Document.findOne({});
     if (!doc) {
-      // If no document exists, create one with empty content
-      doc = await Document.create({ content: '' });
+      return res.json({ revisions: [] });
     }
-    res.json({ document: doc.content });
+    res.json({ revisions: doc.revisions });
   } catch (err) {
-    console.error('Error fetching document:', err);
-    res.status(500).json({ error: 'Error fetching document' });
+    console.error('Error fetching revisions:', err);
+    res.status(500).json({ error: 'Error fetching revisions' });
   }
 });
 
-// POST /document - Update the document content
+// POST /document
 app.post('/document', async (req, res) => {
   try {
     const { document } = req.body;
     let doc = await Document.findOne({});
     if (!doc) {
       // Create a new document if none exists
-      doc = await Document.create({ content: document });
+      doc = await Document.create({ content: document, revisions: [] });
     } else {
-      // Update the existing document
+      // Save the current content as a revision
+      doc.revisions.push({
+        content: doc.content,
+        updatedAt: doc.updatedAt
+      });
+      // Update with the new content and timestamp
       doc.content = document;
       doc.updatedAt = Date.now();
       await doc.save();
