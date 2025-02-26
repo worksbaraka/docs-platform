@@ -5,6 +5,7 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const setupAuth = require('./auth'); // Import Oauth module
+const Document = require('./models/Document');
 
 const app = express();
 
@@ -35,8 +36,42 @@ app.use(passport.session());
 // Set up authentication routes from our auth module
 setupAuth(app);
 
-// In-memory storage for the document (for demonstration purposes)
-let currentDocument = '';
+
+// GET /document - Retrieve the current document content
+app.get('/document', async (req, res) => {
+  try {
+    let doc = await Document.findOne({});
+    if (!doc) {
+      // If no document exists, create one with empty content
+      doc = await Document.create({ content: '' });
+    }
+    res.json({ document: doc.content });
+  } catch (err) {
+    console.error('Error fetching document:', err);
+    res.status(500).json({ error: 'Error fetching document' });
+  }
+});
+
+// POST /document - Update the document content
+app.post('/document', async (req, res) => {
+  try {
+    const { document } = req.body;
+    let doc = await Document.findOne({});
+    if (!doc) {
+      // Create a new document if none exists
+      doc = await Document.create({ content: document });
+    } else {
+      // Update the existing document
+      doc.content = document;
+      doc.updatedAt = Date.now();
+      await doc.save();
+    }
+    res.json({ message: 'Document updated', document: doc.content });
+  } catch (err) {
+    console.error('Error updating document:', err);
+    res.status(500).json({ error: 'Error updating document' });
+  }
+});
 
 mongoose.connect('mongodb://localhost:27017/docsplatform', { 
   useNewUrlParser: true, 
